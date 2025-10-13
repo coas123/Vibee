@@ -1,30 +1,219 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Share2, Music, Sparkles, ArrowLeft } from "lucide-react";
+import { Copy, Share2, Music, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import personaIcon from "@/assets/persona-icon.png";
+import { useAppleMusicAuth } from "@/hooks/use-apple-music-auth";
+import { fetchUserMusicLibraryWithMusicKit, generateMusicKitPersonaPrompt, MusicKitLibrary } from "@/lib/musickit-api";
+
+interface PersonaData {
+  musicPersona: string;
+  prompt: string;
+  genres: string[];
+  mood: string;
+}
 
 const Persona = () => {
   const navigate = useNavigate();
-  const musicPersona = "Cosmic Lofi Rapper";
-  const prompt = "dreamy space electronic with rap elements, ethereal synth textures, punchy hip-hop drums, atmospheric pads, slow tempo, immersive spatial feel";
-  const genres = ["Lofi Hip-Hop", "电子", "说唱", "太空音乐"];
-  const mood = "梦幻 • 放松 • 沉浸";
+  const { isAuthenticated, userToken, isLoading: authLoading } = useAppleMusicAuth();
+  
+  const [personaData, setPersonaData] = useState<PersonaData | null>(null);
+  const [musicLibrary, setMusicLibrary] = useState<MusicKitLibrary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 检查用户认证状态
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast.error("请先连接 Apple Music");
+      navigate('/connect');
+      return;
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  // 获取用户音乐数据
+  useEffect(() => {
+    const fetchMusicData = async () => {
+      if (!isAuthenticated || !userToken) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        console.log('🎵 开始使用 MusicKit 获取用户音乐数据...');
+        console.log('📱 用户Token:', userToken);
+        
+        // 使用 MusicKit 获取用户音乐库数据
+        const library = await fetchUserMusicLibraryWithMusicKit();
+        console.log('📊 MusicKit 音乐库数据:', library);
+        setMusicLibrary(library);
+
+        // 生成音乐人格分析提示词
+        const prompt = generateMusicKitPersonaPrompt(library);
+        console.log('🎨 生成的提示词:', prompt);
+        
+        // 基于数据生成人格信息
+        const persona = generatePersonaFromData(library);
+        console.log('👤 生成的人格:', persona);
+        
+        setPersonaData(persona);
+        
+        toast.success("音乐人格分析完成！");
+      } catch (error) {
+        console.error('❌ 获取音乐数据失败:', error);
+        const errorMessage = error instanceof Error ? error.message : '获取音乐数据失败';
+        setError(errorMessage);
+        toast.error(`获取音乐数据失败: ${errorMessage}`);
+        
+        // 如果获取失败，使用默认数据
+        setPersonaData({
+          musicPersona: "音乐探索者",
+          prompt: "diverse musical styles, eclectic mix, experimental sounds, creative exploration",
+          genres: ["流行", "电子", "摇滚"],
+          mood: "多样 • 开放 • 好奇"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMusicData();
+  }, [isAuthenticated, userToken]);
+
+  // 基于音乐数据生成人格信息的函数
+  const generatePersonaFromData = (library: MusicKitLibrary): PersonaData => {
+    const { topGenres, listeningStats } = library;
+    
+    // 根据主要流派生成人格
+    const primaryGenres = topGenres.slice(0, 3).map(g => g.genre);
+    const totalHours = Math.round(listeningStats.totalPlayTime / (1000 * 60 * 60));
+    
+    // 基于真实数据生成人格
+    let musicPersona = "音乐探索者";
+    let mood = "多样 • 开放 • 好奇";
+    let prompt = "diverse musical styles, eclectic mix, experimental sounds, creative exploration";
+
+    if (primaryGenres.some(g => g.toLowerCase().includes('hip') || g.toLowerCase().includes('rap'))) {
+      musicPersona = "街头音乐诗人";
+      mood = "节奏 • 力量 • 表达";
+      prompt = "urban hip-hop beats, rhythmic flow, street poetry, powerful vocals, modern production";
+    } else if (primaryGenres.some(g => g.toLowerCase().includes('electronic') || g.toLowerCase().includes('edm'))) {
+      musicPersona = "电子音乐先锋";
+      mood = "未来 • 科技 • 律动";
+      prompt = "electronic synthesis, futuristic sounds, dance beats, digital textures, high energy";
+    } else if (primaryGenres.some(g => g.toLowerCase().includes('rock') || g.toLowerCase().includes('alternative'))) {
+      musicPersona = "摇滚精神传承者";
+      mood = "激情 • 反叛 • 真实";
+      prompt = "electric guitars, powerful drums, raw vocals, energetic performance, authentic expression";
+    } else if (primaryGenres.some(g => g.toLowerCase().includes('pop'))) {
+      musicPersona = "流行音乐爱好者";
+      mood = "活力 • 时尚 • 流行";
+      prompt = "catchy melodies, modern pop production, upbeat tempo, commercial appeal, mainstream sound";
+    } else if (primaryGenres.some(g => g.toLowerCase().includes('jazz') || g.toLowerCase().includes('blues'))) {
+      musicPersona = "爵士蓝调灵魂";
+      mood = "优雅 • 深沉 • 即兴";
+      prompt = "smooth jazz harmonies, bluesy guitar licks, soulful vocals, improvisational solos, sophisticated arrangements";
+    } else if (primaryGenres.some(g => g.toLowerCase().includes('classical') || g.toLowerCase().includes('orchestral'))) {
+      musicPersona = "古典音乐鉴赏家";
+      mood = "优雅 • 深邃 • 经典";
+      prompt = "orchestral arrangements, classical instruments, dramatic crescendos, timeless melodies, sophisticated composition";
+    }
+
+    return {
+      musicPersona,
+      prompt,
+      genres: primaryGenres,
+      mood
+    };
+  };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(prompt);
+    if (!personaData) return;
+    navigator.clipboard.writeText(personaData.prompt);
     toast.success("提示词已复制！", {
       description: "现在可以在 Suno 中使用这个提示词创作音乐了"
     });
   };
 
   const sharePersona = () => {
-    const shareText = `我的音乐人格是：${musicPersona}\n\n${prompt}`;
+    if (!personaData) return;
+    const shareText = `我的音乐人格是：${personaData.musicPersona}\n\n${personaData.prompt}`;
     navigator.clipboard.writeText(shareText);
     toast.success("分享内容已复制！");
   };
+
+  // 如果正在加载认证状态，显示加载中
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+          <p className="text-muted-foreground">正在验证授权状态...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果正在加载音乐数据，显示加载中
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="fixed top-4 left-4 z-50"
+          onClick={() => navigate('/connect')}
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center space-y-8">
+            <div className="space-y-4">
+              <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+              <h2 className="text-2xl font-semibold">正在分析你的音乐品味...</h2>
+              <p className="text-muted-foreground">
+                我们正在获取你的音乐数据并生成个性化的人格分析
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果没有数据，显示错误或默认状态
+  if (!personaData) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="fixed top-4 left-4 z-50"
+          onClick={() => navigate('/connect')}
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold text-red-600">获取音乐数据失败</h2>
+              <p className="text-muted-foreground">
+                {error || "无法获取你的音乐数据，请重试"}
+              </p>
+              <Button onClick={() => window.location.reload()}>
+                重新加载
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-12 px-4">
@@ -64,14 +253,14 @@ const Persona = () => {
             {/* Persona Name */}
             <div className="space-y-2">
               <h1 className="text-5xl md:text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                {musicPersona}
+                {personaData.musicPersona}
               </h1>
-              <p className="text-xl text-muted-foreground">{mood}</p>
+              <p className="text-xl text-muted-foreground">{personaData.mood}</p>
             </div>
 
             {/* Genres */}
             <div className="flex flex-wrap gap-2 justify-center">
-              {genres.map((genre) => (
+              {personaData.genres.map((genre) => (
                 <Badge key={genre} variant="secondary" className="text-sm px-3 py-1">
                   {genre}
                 </Badge>
@@ -90,7 +279,7 @@ const Persona = () => {
           </div>
           <div className="p-6 space-y-4">
             <p className="text-foreground leading-relaxed text-lg font-mono bg-muted p-4 rounded-lg">
-              {prompt}
+              {personaData.prompt}
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3">
@@ -114,6 +303,67 @@ const Persona = () => {
             </div>
           </div>
         </Card>
+
+        {/* Music Statistics */}
+        {musicLibrary && (
+          <Card className="bg-card border-border mb-8">
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Music className="w-5 h-5 text-primary" />
+                你的音乐数据
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {musicLibrary.listeningStats.totalTracks}
+                  </div>
+                  <div className="text-sm text-muted-foreground">分析歌曲数</div>
+                </div>
+                
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {Math.round(musicLibrary.listeningStats.totalPlayTime / (1000 * 60 * 60))}h
+                  </div>
+                  <div className="text-sm text-muted-foreground">总听歌时长</div>
+                </div>
+                
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {musicLibrary.lovedTracks.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">收藏歌曲</div>
+                </div>
+              </div>
+
+              {musicLibrary.topGenres.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">主要音乐流派</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {musicLibrary.topGenres.slice(0, 5).map((genre, index) => (
+                      <Badge key={genre.genre} variant="outline" className="text-xs">
+                        {genre.genre} ({genre.count})
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {musicLibrary.recentlyPlayed.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">最近播放</h4>
+                  <div className="space-y-1">
+                    {musicLibrary.recentlyPlayed.slice(0, 3).map((track) => (
+                      <div key={track.id} className="text-sm text-muted-foreground">
+                        {track.name} - {track.artist}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* How to Use */}
         <Card className="bg-card border-border">
