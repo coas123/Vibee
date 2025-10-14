@@ -34,9 +34,6 @@ export interface MusicKitAlbum {
 export interface MusicKitArtist {
   id: string;
   name: string;
-  genre: string;
-  artwork?: string;
-  albumCount: number;
 }
 
 export interface MusicKitMusicSummary {
@@ -86,7 +83,7 @@ export async function fetchRecentlyPlayedWithMusicKit(limit: number = 50): Promi
     
     console.log('🎵 MusicKit 最近播放数据:', response);
     
-    return response.data.map((item: any) => ({
+    return response.data.data.map((item: any) => ({
       id: item.id,
       name: item.attributes.name,
       artist: item.attributes.artistName,
@@ -129,7 +126,7 @@ export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<
     
     console.log('❤️ MusicKit 用户库歌曲数据:', response);
     
-    return response.data
+    return response.data.data
       .filter((item: any) => item.attributes.playCount > 0)
       .map((item: any) => ({
         id: item.id,
@@ -164,7 +161,7 @@ export async function fetchHeavyRotationWithMusicKit(limit: number = 20): Promis
     
     console.log('🔄 MusicKit 重播列表数据:', response);
     
-    return response.data.map((item: any) => ({
+    return response.data.data.map((item: any) => ({
       id: item.id,
       name: item.attributes.name,
       artist: item.attributes.artistName,
@@ -199,7 +196,7 @@ export async function fetchMusicSummariesWithMusicKit(): Promise<MusicKitMusicSu
     
     console.log('📊 MusicKit 音乐摘要数据:', response);
     
-    return response.data.map((item: any) => ({
+    return response.data.data.map((item: any) => ({
       id: item.id,
       type: item.type,
       attributes: item.attributes,
@@ -224,12 +221,9 @@ export async function fetchLibraryArtistsWithMusicKit(limit: number = 50): Promi
     
     console.log('🎤 MusicKit 用户库艺术家数据:', response);
     
-    return response.data.map((artist: any) => ({
+    return response.data.data.map((artist: any) => ({
       id: artist.id,
-      name: artist.attributes.name,
-      genre: artist.attributes.genreNames?.[0] || 'Unknown',
-      artwork: artist.attributes.artwork?.url,
-      albumCount: 0, // 需要单独获取
+      name: artist.attributes.name
     }));
   } catch (error) {
     console.error('❌ MusicKit 获取用户库艺术家失败:', error);
@@ -251,7 +245,7 @@ export async function fetchUserAlbumsWithMusicKit(limit: number = 50): Promise<M
     
     console.log('💿 MusicKit 用户专辑数据:', response);
     
-    return response.data.map((album: any) => ({
+    return response.data.data.map((album: any) => ({
       id: album.id,
       name: album.attributes.name,
       artist: album.attributes.artistName,
@@ -374,11 +368,11 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
 
     console.log('✅ MusicKit 音乐库数据获取完成:', result);
     console.log('📊 数据统计:', {
-      最近播放: uniqueRecentTracks.length,
-      收藏歌曲: lovedTracksData.length,
-      播放列表: playlistsData.length,
-      专辑数量: albumsData.length,
-      推荐音乐: recommendationsData.length,
+      最近播放: recentlyPlayedData.length,
+      收藏歌曲: librarySongsData.length,
+      重播专辑: heavyRotationData.length,
+      专辑数量: libraryAlbumsData.length,
+      艺术家数量: libraryArtistsData.length,
       总曲目: allTracks.length
     });
     
