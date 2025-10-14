@@ -176,7 +176,11 @@ export async function fetchMusicSummariesWithMusicKit(): Promise<MusicKitMusicSu
     const musicKit = getMusicKitInstance();
     
     // 使用 MusicKit 的 API 获取音乐摘要 - 正确的API调用方式
-    const queryParameters = { l: 'en-us' };
+    const currentYear = new Date().getFullYear();
+    const queryParameters = { 
+      l: 'en-us',
+      'filter[year]': currentYear.toString()
+    };
     const response = await musicKit.api.music('/v1/me/music-summaries', queryParameters);
     
     console.log('📊 MusicKit 音乐摘要数据:', response);
