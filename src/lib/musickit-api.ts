@@ -31,11 +31,27 @@ export interface MusicKitAlbum {
   tracks: MusicKitTrack[];
 }
 
+export interface MusicKitArtist {
+  id: string;
+  name: string;
+  genre: string;
+  artwork?: string;
+  albumCount: number;
+}
+
+export interface MusicKitMusicSummary {
+  id: string;
+  type: string;
+  attributes: any;
+}
+
 export interface MusicKitLibrary {
+  musicSummaries: MusicKitMusicSummary[];
+  heavyRotation: MusicKitTrack[];
   recentlyPlayed: MusicKitTrack[];
-  lovedTracks: MusicKitTrack[];
-  playlists: MusicKitPlaylist[];
-  albums: MusicKitAlbum[];
+  librarySongs: MusicKitTrack[];
+  libraryArtists: MusicKitArtist[];
+  libraryAlbums: MusicKitAlbum[];
   topGenres: { genre: string; count: number }[];
   listeningStats: {
     totalTracks: number;
@@ -119,38 +135,12 @@ export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<
   }
 }
 
-/**
- * 使用 MusicKit 获取用户的播放列表
- * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
- */
-export async function fetchUserPlaylistsWithMusicKit(limit: number = 20): Promise<MusicKitPlaylist[]> {
-  try {
-    const musicKit = getMusicKitInstance();
-    
-    // 使用 MusicKit 的 API 获取用户播放列表 - 正确的API调用方式
-    const queryParameters = { limit: limit.toString() };
-    const response = await musicKit.api.music('/v1/me/library/playlists', queryParameters);
-    
-    console.log('📋 MusicKit 播放列表数据:', response);
-    
-    return response.data.map((playlist: any) => ({
-      id: playlist.id,
-      name: playlist.attributes.name,
-      description: playlist.attributes.description?.standard,
-      trackCount: playlist.attributes.trackCount,
-      tracks: [], // 播放列表的曲目需要单独获取
-    }));
-  } catch (error) {
-    console.error('❌ MusicKit 获取播放列表失败:', error);
-    throw error;
-  }
-}
 
 /**
  * 使用 MusicKit 获取用户的重播列表
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
  */
-export async function fetchHeavyRotationWithMusicKit(): Promise<MusicKitTrack[]> {
+export async function fetchHeavyRotationWithMusicKit(limit: number = 20): Promise<MusicKitTrack[]> {
   try {
     const musicKit = getMusicKitInstance();
     
@@ -178,62 +168,54 @@ export async function fetchHeavyRotationWithMusicKit(): Promise<MusicKitTrack[]>
 }
 
 /**
- * 使用 MusicKit 获取用户的历史播放记录
+ * 使用 MusicKit 获取音乐摘要信息
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
  */
-export async function fetchHistoryWithMusicKit(limit: number = 50): Promise<MusicKitTrack[]> {
+export async function fetchMusicSummariesWithMusicKit(): Promise<MusicKitMusicSummary[]> {
   try {
     const musicKit = getMusicKitInstance();
     
-    // 使用 MusicKit 的 API 获取历史播放 - 正确的API调用方式
-    const queryParameters = { limit: limit.toString() };
-    const response = await musicKit.api.music('/v1/me/history/tracks', queryParameters);
+    // 使用 MusicKit 的 API 获取音乐摘要 - 正确的API调用方式
+    const queryParameters = { l: 'en-us' };
+    const response = await musicKit.api.music('/v1/me/music-summaries', queryParameters);
     
-    console.log('📜 MusicKit 历史播放数据:', response);
+    console.log('📊 MusicKit 音乐摘要数据:', response);
     
     return response.data.map((item: any) => ({
       id: item.id,
-      name: item.attributes.name,
-      artist: item.attributes.artistName,
-      album: item.attributes.albumName,
-      genre: item.attributes.genreNames?.[0] || 'Unknown',
-      duration: item.attributes.durationInMillis,
-      playCount: item.attributes.playCount,
-      addedDate: item.attributes.dateAdded,
+      type: item.type,
+      attributes: item.attributes,
     }));
   } catch (error) {
-    console.error('❌ MusicKit 获取历史播放失败:', error);
+    console.error('❌ MusicKit 获取音乐摘要失败:', error);
     return [];
   }
 }
 
 /**
- * 使用 MusicKit 获取用户的推荐音乐
+ * 使用 MusicKit 获取用户库中的艺术家信息
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
  */
-export async function fetchRecommendationsWithMusicKit(limit: number = 20): Promise<MusicKitTrack[]> {
+export async function fetchLibraryArtistsWithMusicKit(limit: number = 50): Promise<MusicKitArtist[]> {
   try {
     const musicKit = getMusicKitInstance();
     
-    // 使用 MusicKit 的 API 获取推荐音乐 - 正确的API调用方式
-    const queryParameters = { limit: limit.toString() };
-    const response = await musicKit.api.music('/v1/me/recommendations', queryParameters);
+    // 使用 MusicKit 的 API 获取用户库艺术家 - 正确的API调用方式
+    const queryParameters = { l: 'en-us' };
+    const response = await musicKit.api.music('/v1/me/library/artists', queryParameters);
     
-    console.log('🎯 MusicKit 推荐音乐数据:', response);
+    console.log('🎤 MusicKit 用户库艺术家数据:', response);
     
-    return response.data.map((item: any) => ({
-      id: item.id,
-      name: item.attributes.name,
-      artist: item.attributes.artistName,
-      album: item.attributes.albumName,
-      genre: item.attributes.genreNames?.[0] || 'Unknown',
-      duration: item.attributes.durationInMillis,
-      playCount: item.attributes.playCount,
-      addedDate: item.attributes.dateAdded,
+    return response.data.map((artist: any) => ({
+      id: artist.id,
+      name: artist.attributes.name,
+      genre: artist.attributes.genreNames?.[0] || 'Unknown',
+      artwork: artist.attributes.artwork?.url,
+      albumCount: 0, // 需要单独获取
     }));
   } catch (error) {
-    console.error('❌ MusicKit 获取推荐音乐失败:', error);
-    return [];
+    console.error('❌ MusicKit 获取用户库艺术家失败:', error);
+    throw error;
   }
 }
 
@@ -329,41 +311,46 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
   try {
     console.log('🎵 开始使用 MusicKit 获取用户音乐数据...');
     
-    // 并行获取所有数据 - 根据官方文档使用正确的API方法
-    const [recentlyPlayed, history, heavyRotation, lovedTracks, playlists, albums, recommendations] = await Promise.allSettled([
-      fetchRecentlyPlayedWithMusicKit(100),
-      fetchHistoryWithMusicKit(100),
-      fetchHeavyRotationWithMusicKit(),
-      fetchLovedTracksWithMusicKit(100),
-      fetchUserPlaylistsWithMusicKit(20),
+    // 并行获取所有数据 - 只使用需要的接口
+    const [
+      musicSummaries,
+      heavyRotation,
+      recentlyPlayed,
+      librarySongs,
+      libraryArtists,
+      libraryAlbums,
+    ] = await Promise.allSettled([
+      fetchMusicSummariesWithMusicKit(),
+      fetchHeavyRotationWithMusicKit(20),
+      fetchRecentlyPlayedWithMusicKit(50),
+      fetchLovedTracksWithMusicKit(50), // 使用loved tracks作为library songs
+      fetchLibraryArtistsWithMusicKit(50),
       fetchUserAlbumsWithMusicKit(50),
-      fetchRecommendationsWithMusicKit(20),
     ]);
 
     // 处理结果，即使某些请求失败也要继续
-    const recentlyPlayedData = recentlyPlayed.status === 'fulfilled' ? recentlyPlayed.value : [];
-    const historyData = history.status === 'fulfilled' ? history.value : [];
+    const musicSummariesData = musicSummaries.status === 'fulfilled' ? musicSummaries.value : [];
     const heavyRotationData = heavyRotation.status === 'fulfilled' ? heavyRotation.value : [];
-    const lovedTracksData = lovedTracks.status === 'fulfilled' ? lovedTracks.value : [];
-    const playlistsData = playlists.status === 'fulfilled' ? playlists.value : [];
-    const albumsData = albums.status === 'fulfilled' ? albums.value : [];
-    const recommendationsData = recommendations.status === 'fulfilled' ? recommendations.value : [];
+    const recentlyPlayedData = recentlyPlayed.status === 'fulfilled' ? recentlyPlayed.value : [];
+    const librarySongsData = librarySongs.status === 'fulfilled' ? librarySongs.value : [];
+    const libraryArtistsData = libraryArtists.status === 'fulfilled' ? libraryArtists.value : [];
+    const libraryAlbumsData = libraryAlbums.status === 'fulfilled' ? libraryAlbums.value : [];
 
-    // 合并所有播放数据，去重
-    const allRecentTracks = [...recentlyPlayedData, ...historyData, ...heavyRotationData];
-    const uniqueRecentTracks = allRecentTracks.filter((track, index, self) => 
-      index === self.findIndex(t => t.id === track.id)
-    );
-
-    // 合并所有曲目进行分析（包括推荐音乐）
-    const allTracks = [...uniqueRecentTracks, ...lovedTracksData, ...recommendationsData];
+    // 合并所有曲目数据用于分析
+    const allTracks = [
+      ...recentlyPlayedData,
+      ...librarySongsData,
+      ...heavyRotationData,
+    ];
     const analysis = analyzeMusicKitData(allTracks);
 
     const result = {
-      recentlyPlayed: uniqueRecentTracks,
-      lovedTracks: lovedTracksData,
-      playlists: playlistsData,
-      albums: albumsData,
+      musicSummaries: musicSummariesData,
+      heavyRotation: heavyRotationData,
+      recentlyPlayed: recentlyPlayedData,
+      librarySongs: librarySongsData,
+      libraryArtists: libraryArtistsData,
+      libraryAlbums: libraryAlbumsData,
       topGenres: analysis.topGenres,
       listeningStats: analysis.listeningStats,
     };

@@ -330,9 +330,25 @@ const Persona = () => {
                 
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <div className="text-2xl font-bold text-primary">
-                    {musicLibrary.lovedTracks.length}
+                    {musicLibrary.librarySongs.length}
                   </div>
-                  <div className="text-sm text-muted-foreground">收藏歌曲</div>
+                  <div className="text-sm text-muted-foreground">库中歌曲</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {musicLibrary.libraryArtists.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">库中艺术家</div>
+                </div>
+                
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {musicLibrary.libraryAlbums.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">库中专辑</div>
                 </div>
               </div>
 
@@ -356,6 +372,19 @@ const Persona = () => {
                     {musicLibrary.recentlyPlayed.slice(0, 3).map((track) => (
                       <div key={track.id} className="text-sm text-muted-foreground">
                         {track.name} - {track.artist}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {musicLibrary.heavyRotation.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">热门轮播</h4>
+                  <div className="space-y-1">
+                    {musicLibrary.heavyRotation.slice(0, 3).map((track) => (
+                      <div key={track.id} className="text-sm text-muted-foreground">
+                        {track.name} - {track.artist} ({track.playCount || 0} 次播放)
                       </div>
                     ))}
                   </div>
