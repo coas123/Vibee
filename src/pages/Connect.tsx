@@ -6,12 +6,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAppleMusicAuth } from "@/hooks/use-apple-music-auth";
-import { AppleMusicAuthDemo } from "@/components/AppleMusicAuthDemo";
 import { APPLE_MUSIC_CONFIG } from "@/lib/apple-music";
 
 const Connect = () => {
   const navigate = useNavigate();
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const { 
     isAuthenticated, 
     isLoading, 
@@ -44,16 +42,8 @@ const Connect = () => {
     if (isConfigured) {
       startAuth();
     } else {
-      setIsDemoMode(true);
+      toast.error('MusicKit 未配置开发者令牌，请查看配置文档');
     }
-  };
-
-  const handleDemoAuthSuccess = (token: string, user: { id: string; name: string; email?: string }) => {
-    // 在演示模式下，直接跳转到下一个页面
-    toast.success(`欢迎，${user.name}！开始分析你的音乐品味...`);
-    setTimeout(() => {
-      navigate('/persona');
-    }, 2000);
   };
 
   return (
@@ -67,10 +57,7 @@ const Connect = () => {
         <ArrowLeft className="w-5 h-5" />
       </Button>
       
-      {isDemoMode ? (
-        <AppleMusicAuthDemo onAuthSuccess={handleDemoAuthSuccess} />
-      ) : (
-        <Card className="w-full max-w-md border-border shadow-glow-primary">
+      <Card className="w-full max-w-md border-border shadow-glow-primary">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center animate-pulse-glow">
             <Music className="w-10 h-10 text-white" />
@@ -155,7 +142,6 @@ const Connect = () => {
           </Button>
         </CardContent>
       </Card>
-      )}
     </div>
   );
 };

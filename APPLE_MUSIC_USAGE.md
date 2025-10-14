@@ -23,7 +23,7 @@ src/
 ├── hooks/
 │   └── use-apple-music-auth.ts # 授权状态管理 Hook
 ├── components/
-│   └── AppleMusicAuthDemo.tsx  # 演示模式组件
+│   └── SunoAssistant.tsx       # Suno 助手组件
 └── pages/
     ├── Connect.tsx             # 授权页面
     └── TestAuth.tsx            # 测试页面
