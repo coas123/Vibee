@@ -47,7 +47,7 @@ export interface MusicKitMusicSummary {
 
 export interface MusicKitLibrary {
   musicSummaries: MusicKitMusicSummary[];
-  heavyRotation: MusicKitTrack[];
+  heavyRotation: MusicKitAlbum[];
   recentlyPlayed: MusicKitTrack[];
   librarySongs: MusicKitTrack[];
   libraryArtists: MusicKitArtist[];
@@ -74,15 +74,15 @@ function getMusicKitInstance() {
 /**
  * 使用 MusicKit 获取用户最近播放的音乐
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
+ * 使用 /v1/me/recent/played/tracks 端点
  */
 export async function fetchRecentlyPlayedWithMusicKit(limit: number = 50): Promise<MusicKitTrack[]> {
   try {
     const musicKit = getMusicKitInstance();
     
-    // 使用 MusicKit 的 API 获取最近播放 - 正确的API调用方式
-    
+    // 使用 MusicKit 的 API 获取最近播放的曲目 - 正确的API调用方式
     const queryParameters = { l: 'en-us' };
-    const response = await musicKit.api.music('/v1/me/recent/played', queryParameters);
+    const response = await musicKit.api.music('/v1/me/recent/played/tracks', queryParameters);
     
     console.log('🎵 MusicKit 最近播放数据:', response);
     
@@ -95,6 +95,19 @@ export async function fetchRecentlyPlayedWithMusicKit(limit: number = 50): Promi
       duration: item.attributes.durationInMillis,
       playCount: item.attributes.playCount,
       addedDate: item.attributes.dateAdded,
+      // 新增字段映射
+      artwork: item.attributes.artwork,
+      previews: item.attributes.previews,
+      playParams: item.attributes.playParams,
+      url: item.attributes.url,
+      isrc: item.attributes.isrc,
+      releaseDate: item.attributes.releaseDate,
+      trackNumber: item.attributes.trackNumber,
+      discNumber: item.attributes.discNumber,
+      hasLyrics: item.attributes.hasLyrics,
+      isAppleDigitalMaster: item.attributes.isAppleDigitalMaster,
+      composerName: item.attributes.composerName,
+      genreNames: item.attributes.genreNames,
     }));
   } catch (error) {
     console.error('❌ MusicKit 获取最近播放失败:', error);
@@ -111,7 +124,7 @@ export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<
     const musicKit = getMusicKitInstance();
     
     // 使用 MusicKit 的 API 获取用户库中的歌曲 - 正确的API调用方式
-    const queryParameters = { limit: limit.toString() };
+    const queryParameters = { l: 'en-us' };
     const response = await musicKit.api.music('/v1/me/library/songs', queryParameters);
     
     console.log('❤️ MusicKit 用户库歌曲数据:', response);
@@ -139,8 +152,9 @@ export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<
 /**
  * 使用 MusicKit 获取用户的重播列表
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
+ * heavy-rotation API 返回的是专辑数据，不是歌曲数据
  */
-export async function fetchHeavyRotationWithMusicKit(limit: number = 20): Promise<MusicKitTrack[]> {
+export async function fetchHeavyRotationWithMusicKit(limit: number = 20): Promise<MusicKitAlbum[]> {
   try {
     const musicKit = getMusicKitInstance();
     
@@ -154,11 +168,11 @@ export async function fetchHeavyRotationWithMusicKit(limit: number = 20): Promis
       id: item.id,
       name: item.attributes.name,
       artist: item.attributes.artistName,
-      album: item.attributes.albumName,
+      releaseDate: item.attributes.releaseDate,
+      trackCount: item.attributes.trackCount,
       genre: item.attributes.genreNames?.[0] || 'Unknown',
-      duration: item.attributes.durationInMillis,
-      playCount: item.attributes.playCount,
-      addedDate: item.attributes.dateAdded,
+      artwork: item.attributes.artwork?.url,
+      tracks: [], // 专辑的曲目需要单独获取
     }));
   } catch (error) {
     console.error('❌ MusicKit 获取重播列表失败:', error);
@@ -340,11 +354,10 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     const libraryArtistsData = libraryArtists.status === 'fulfilled' ? libraryArtists.value : [];
     const libraryAlbumsData = libraryAlbums.status === 'fulfilled' ? libraryAlbums.value : [];
 
-    // 合并所有曲目数据用于分析
+    // 合并所有曲目数据用于分析（heavy-rotation 现在是专辑数据，不包含在曲目分析中）
     const allTracks = [
       ...recentlyPlayedData,
       ...librarySongsData,
-      ...heavyRotationData,
     ];
     const analysis = analyzeMusicKitData(allTracks);
 
@@ -380,7 +393,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
  * 生成音乐人格分析提示词
  */
 export function generateMusicKitPersonaPrompt(library: MusicKitLibrary): string {
-  const { topGenres, listeningStats, recentlyPlayed, lovedTracks } = library;
+  const { topGenres, listeningStats, recentlyPlayed, librarySongs, heavyRotation } = library;
   
   const topGenresText = topGenres.slice(0, 5).map(g => g.genre).join('、');
   const totalHours = Math.round(listeningStats.totalPlayTime / (1000 * 60 * 60));
@@ -392,14 +405,18 @@ export function generateMusicKitPersonaPrompt(library: MusicKitLibrary): string 
 - 主要流派：${topGenresText}
 - 总听歌时长：约 ${totalHours} 小时
 - 平均听歌时长：约 ${avgSessionMinutes} 分钟
-- 收藏歌曲数：${lovedTracks.length} 首
+- 收藏歌曲数：${librarySongs.length} 首
 - 最近播放：${recentlyPlayed.length} 首
+- 重播专辑：${heavyRotation.length} 张
 
 **最近喜欢的歌曲：**
 ${recentlyPlayed.slice(0, 10).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
 
 **收藏的歌曲：**
-${lovedTracks.slice(0, 10).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
+${librarySongs.slice(0, 10).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
+
+**重播专辑：**
+${heavyRotation.slice(0, 10).map(album => `- ${album.name} - ${album.artist}`).join('\n')}
 
 请分析这个用户的音乐品味特点，包括：
 1. 音乐风格偏好
