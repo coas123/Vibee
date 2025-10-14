@@ -20,10 +20,22 @@ export interface MusicKitPlaylist {
   tracks: MusicKitTrack[];
 }
 
+export interface MusicKitAlbum {
+  id: string;
+  name: string;
+  artist: string;
+  releaseDate: string;
+  trackCount: number;
+  genre: string;
+  artwork?: string;
+  tracks: MusicKitTrack[];
+}
+
 export interface MusicKitLibrary {
   recentlyPlayed: MusicKitTrack[];
   lovedTracks: MusicKitTrack[];
   playlists: MusicKitPlaylist[];
+  albums: MusicKitAlbum[];
   topGenres: { genre: string; count: number }[];
   listeningStats: {
     totalTracks: number;
@@ -143,7 +155,7 @@ export async function fetchHeavyRotationWithMusicKit(): Promise<MusicKitTrack[]>
     const musicKit = getMusicKitInstance();
     
     // 使用 MusicKit 的 API 获取重播列表 - 正确的API调用方式
-    const queryParameters = {};
+    const queryParameters = { l: 'en-us' };
     const response = await musicKit.api.music('/v1/me/history/heavy-rotation', queryParameters);
     
     console.log('🔄 MusicKit 重播列表数据:', response);
@@ -226,6 +238,36 @@ export async function fetchRecommendationsWithMusicKit(limit: number = 20): Prom
 }
 
 /**
+ * 使用 MusicKit 获取用户的所有音乐专辑信息
+ * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
+ */
+export async function fetchUserAlbumsWithMusicKit(limit: number = 50): Promise<MusicKitAlbum[]> {
+  try {
+    const musicKit = getMusicKitInstance();
+    
+    // 使用 MusicKit 的 API 获取用户专辑信息 - 正确的API调用方式
+    const queryParameters = { l: 'en-us' };
+    const response = await musicKit.api.music('/v1/me/library/albums', queryParameters);
+    
+    console.log('💿 MusicKit 用户专辑数据:', response);
+    
+    return response.data.map((album: any) => ({
+      id: album.id,
+      name: album.attributes.name,
+      artist: album.attributes.artistName,
+      releaseDate: album.attributes.releaseDate,
+      trackCount: album.attributes.trackCount,
+      genre: album.attributes.genreNames?.[0] || 'Unknown',
+      artwork: album.attributes.artwork?.url,
+      tracks: [], // 专辑的曲目需要单独获取
+    }));
+  } catch (error) {
+    console.error('❌ MusicKit 获取用户专辑失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 分析音乐数据并生成统计信息
  */
 export function analyzeMusicKitData(tracks: MusicKitTrack[]): {
@@ -288,12 +330,13 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     console.log('🎵 开始使用 MusicKit 获取用户音乐数据...');
     
     // 并行获取所有数据 - 根据官方文档使用正确的API方法
-    const [recentlyPlayed, history, heavyRotation, lovedTracks, playlists, recommendations] = await Promise.allSettled([
+    const [recentlyPlayed, history, heavyRotation, lovedTracks, playlists, albums, recommendations] = await Promise.allSettled([
       fetchRecentlyPlayedWithMusicKit(100),
       fetchHistoryWithMusicKit(100),
       fetchHeavyRotationWithMusicKit(),
       fetchLovedTracksWithMusicKit(100),
       fetchUserPlaylistsWithMusicKit(20),
+      fetchUserAlbumsWithMusicKit(50),
       fetchRecommendationsWithMusicKit(20),
     ]);
 
@@ -303,6 +346,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     const heavyRotationData = heavyRotation.status === 'fulfilled' ? heavyRotation.value : [];
     const lovedTracksData = lovedTracks.status === 'fulfilled' ? lovedTracks.value : [];
     const playlistsData = playlists.status === 'fulfilled' ? playlists.value : [];
+    const albumsData = albums.status === 'fulfilled' ? albums.value : [];
     const recommendationsData = recommendations.status === 'fulfilled' ? recommendations.value : [];
 
     // 合并所有播放数据，去重
@@ -319,6 +363,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       recentlyPlayed: uniqueRecentTracks,
       lovedTracks: lovedTracksData,
       playlists: playlistsData,
+      albums: albumsData,
       topGenres: analysis.topGenres,
       listeningStats: analysis.listeningStats,
     };
@@ -328,6 +373,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       最近播放: uniqueRecentTracks.length,
       收藏歌曲: lovedTracksData.length,
       播放列表: playlistsData.length,
+      专辑数量: albumsData.length,
       推荐音乐: recommendationsData.length,
       总曲目: allTracks.length
     });
