@@ -8,7 +8,6 @@ import Connect from "./pages/Connect";
 import Persona from "./pages/Persona";
 import Demo from "./pages/Demo";
 import SunoDemo from "./pages/SunoDemo";
-import TestAuth from "./pages/TestAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +24,6 @@ const App = () => (
           <Route path="/persona" element={<Persona />} />
           <Route path="/demo" element={<Demo />} />
           <Route path="/suno-demo" element={<SunoDemo />} />
-          <Route path="/test-auth" element={<TestAuth />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

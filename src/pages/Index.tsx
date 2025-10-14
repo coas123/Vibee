@@ -60,14 +60,6 @@ const Index = () => {
             >
               查看示例
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="lg"
-              onClick={() => navigate('/test-auth')}
-            >
-              测试授权
-            </Button>
           </div>
         </div>
       </section>
