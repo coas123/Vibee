@@ -116,7 +116,7 @@ export async function fetchRecentlyPlayedWithMusicKit(limit: number = 50): Promi
  * 使用 MusicKit 获取用户库中的歌曲
  * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
  */
-export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<MusicKitTrack[]> {
+export async function fetchLibrarySongsWithMusicKit(limit: number = 50): Promise<MusicKitTrack[]> {
   try {
     const musicKit = getMusicKitInstance();
     
@@ -127,7 +127,6 @@ export async function fetchLovedTracksWithMusicKit(limit: number = 50): Promise<
     console.log('❤️ MusicKit 用户库歌曲数据:', response);
     
     return response.data.data
-      .filter((item: any) => item.attributes.playCount > 0)
       .map((item: any) => ({
         id: item.id,
         name: item.attributes.name,
@@ -335,7 +334,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       fetchMusicSummariesWithMusicKit(),
       fetchHeavyRotationWithMusicKit(20),
       fetchRecentlyPlayedWithMusicKit(50),
-      fetchLovedTracksWithMusicKit(50), // 使用loved tracks作为library songs
+      fetchLibrarySongsWithMusicKit(50), // 获取用户库中的歌曲
       fetchLibraryArtistsWithMusicKit(50),
       fetchUserAlbumsWithMusicKit(50),
     ]);
