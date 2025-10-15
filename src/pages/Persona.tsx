@@ -313,7 +313,7 @@ const Persona = () => {
                 你的音乐数据
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <div className="text-2xl font-bold text-primary">
                     {musicLibrary.listeningStats.totalTracks}
@@ -333,6 +333,13 @@ const Persona = () => {
                     {musicLibrary.librarySongs.length}
                   </div>
                   <div className="text-sm text-muted-foreground">库中歌曲</div>
+                </div>
+                
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {musicLibrary.recentlyAdded.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">最近添加</div>
                 </div>
               </div>
 
@@ -372,6 +379,24 @@ const Persona = () => {
                     {musicLibrary.recentlyPlayed.slice(0, 3).map((track) => (
                       <div key={track.id} className="text-sm text-muted-foreground">
                         {track.name} - {track.artist}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {musicLibrary.recentlyAdded.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">最近添加</h4>
+                  <div className="space-y-1">
+                    {musicLibrary.recentlyAdded.slice(0, 3).map((track) => (
+                      <div key={track.id} className="text-sm text-muted-foreground">
+                        {track.name} - {track.artist}
+                        {track.addedDate && (
+                          <span className="ml-2 text-xs opacity-75">
+                            ({new Date(track.addedDate).toLocaleDateString()})
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

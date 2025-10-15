@@ -46,6 +46,7 @@ export interface MusicKitLibrary {
   musicSummaries: MusicKitMusicSummary[];
   heavyRotation: MusicKitAlbum[];
   recentlyPlayed: MusicKitTrack[];
+  recentlyAdded: MusicKitTrack[];
   librarySongs: MusicKitTrack[];
   libraryArtists: MusicKitArtist[];
   libraryAlbums: MusicKitAlbum[];
@@ -261,6 +262,51 @@ export async function fetchUserAlbumsWithMusicKit(limit: number = 50): Promise<M
 }
 
 /**
+ * 使用 MusicKit 获取用户最近添加的音乐
+ * 根据官方文档：https://js-cdn.music.apple.com/musickit/v3/docs/index.html
+ * 使用 /v1/me/library/recently-added 端点
+ */
+export async function fetchRecentlyAddedWithMusicKit(limit: number = 50): Promise<MusicKitTrack[]> {
+  try {
+    const musicKit = getMusicKitInstance();
+    
+    // 使用 MusicKit 的 API 获取最近添加的音乐 - 正确的API调用方式
+    const queryParameters = { l: 'en-us' };
+    const response = await musicKit.api.music('/v1/me/library/recently-added', queryParameters);
+    
+    console.log('🆕 MusicKit 最近添加音乐数据:', response);
+    
+    return response.data.data.map((item: any) => ({
+      id: item.id,
+      name: item.attributes.name,
+      artist: item.attributes.artistName,
+      album: item.attributes.albumName,
+      genre: item.attributes.genreNames?.[0] || 'Unknown',
+      duration: item.attributes.durationInMillis,
+      playCount: item.attributes.playCount,
+      isLoved: true, // 最近添加的音乐都是用户喜欢的
+      addedDate: item.attributes.dateAdded,
+      // 新增字段映射
+      artwork: item.attributes.artwork,
+      previews: item.attributes.previews,
+      playParams: item.attributes.playParams,
+      url: item.attributes.url,
+      isrc: item.attributes.isrc,
+      releaseDate: item.attributes.releaseDate,
+      trackNumber: item.attributes.trackNumber,
+      discNumber: item.attributes.discNumber,
+      hasLyrics: item.attributes.hasLyrics,
+      isAppleDigitalMaster: item.attributes.isAppleDigitalMaster,
+      composerName: item.attributes.composerName,
+      genreNames: item.attributes.genreNames,
+    }));
+  } catch (error) {
+    console.error('❌ MusicKit 获取最近添加音乐失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 分析音乐数据并生成统计信息
  */
 export function analyzeMusicKitData(tracks: MusicKitTrack[]): {
@@ -327,6 +373,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       musicSummaries,
       heavyRotation,
       recentlyPlayed,
+      recentlyAdded,
       librarySongs,
       libraryArtists,
       libraryAlbums,
@@ -334,6 +381,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       fetchMusicSummariesWithMusicKit(),
       fetchHeavyRotationWithMusicKit(20),
       fetchRecentlyPlayedWithMusicKit(50),
+      fetchRecentlyAddedWithMusicKit(50), // 获取最近添加的音乐
       fetchLibrarySongsWithMusicKit(50), // 获取用户库中的歌曲
       fetchLibraryArtistsWithMusicKit(50),
       fetchUserAlbumsWithMusicKit(50),
@@ -343,6 +391,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     const musicSummariesData = musicSummaries.status === 'fulfilled' ? musicSummaries.value : [];
     const heavyRotationData = heavyRotation.status === 'fulfilled' ? heavyRotation.value : [];
     const recentlyPlayedData = recentlyPlayed.status === 'fulfilled' ? recentlyPlayed.value : [];
+    const recentlyAddedData = recentlyAdded.status === 'fulfilled' ? recentlyAdded.value : [];
     const librarySongsData = librarySongs.status === 'fulfilled' ? librarySongs.value : [];
     const libraryArtistsData = libraryArtists.status === 'fulfilled' ? libraryArtists.value : [];
     const libraryAlbumsData = libraryAlbums.status === 'fulfilled' ? libraryAlbums.value : [];
@@ -350,6 +399,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     // 合并所有曲目数据用于分析（heavy-rotation 现在是专辑数据，不包含在曲目分析中）
     const allTracks = [
       ...recentlyPlayedData,
+      ...recentlyAddedData,
       ...librarySongsData,
     ];
     const analysis = analyzeMusicKitData(allTracks);
@@ -358,6 +408,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
       musicSummaries: musicSummariesData,
       heavyRotation: heavyRotationData,
       recentlyPlayed: recentlyPlayedData,
+      recentlyAdded: recentlyAddedData,
       librarySongs: librarySongsData,
       libraryArtists: libraryArtistsData,
       libraryAlbums: libraryAlbumsData,
@@ -368,6 +419,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
     console.log('✅ MusicKit 音乐库数据获取完成:', result);
     console.log('📊 数据统计:', {
       最近播放: recentlyPlayedData.length,
+      最近添加: recentlyAddedData.length,
       收藏歌曲: librarySongsData.length,
       重播专辑: heavyRotationData.length,
       专辑数量: libraryAlbumsData.length,
@@ -386,7 +438,7 @@ export async function fetchUserMusicLibraryWithMusicKit(): Promise<MusicKitLibra
  * 生成音乐人格分析提示词
  */
 export function generateMusicKitPersonaPrompt(library: MusicKitLibrary): string {
-  const { topGenres, listeningStats, recentlyPlayed, librarySongs, heavyRotation } = library;
+  const { topGenres, listeningStats, recentlyPlayed, recentlyAdded, librarySongs, heavyRotation } = library;
   
   const topGenresText = topGenres.slice(0, 5).map(g => g.genre).join('、');
   const totalHours = Math.round(listeningStats.totalPlayTime / (1000 * 60 * 60));
@@ -400,16 +452,20 @@ export function generateMusicKitPersonaPrompt(library: MusicKitLibrary): string 
 - 平均听歌时长：约 ${avgSessionMinutes} 分钟
 - 收藏歌曲数：${librarySongs.length} 首
 - 最近播放：${recentlyPlayed.length} 首
+- 最近添加：${recentlyAdded.length} 首
 - 重播专辑：${heavyRotation.length} 张
 
-**最近喜欢的歌曲：**
-${recentlyPlayed.slice(0, 10).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
+**最近播放的歌曲：**
+${recentlyPlayed.slice(0, 100).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
+
+**最近添加的歌曲：**
+${recentlyAdded.slice(0, 100).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
 
 **收藏的歌曲：**
-${librarySongs.slice(0, 10).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
+${librarySongs.slice(0, 100).map(track => `- ${track.name} - ${track.artist}`).join('\n')}
 
 **重播专辑：**
-${heavyRotation.slice(0, 10).map(album => `- ${album.name} - ${album.artist}`).join('\n')}
+${heavyRotation.slice(0, 100).map(album => `- ${album.name} - ${album.artist}`).join('\n')}
 
 请分析这个用户的音乐品味特点，包括：
 1. 音乐风格偏好
